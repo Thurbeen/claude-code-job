@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# renovate-pr-fixer.sh
+# bump-pr-fixer.sh
 # Finds Renovate PRs with failing CI and uses Claude Code to fix them.
 #
 # Required env vars:
 #   GH_TOKEN                 - GitHub PAT with repo scope
 #   CLAUDE_CODE_OAUTH_TOKEN  - Claude Max OAuth token
 #   REPOS                    - Newline-separated list of owner/repo
+#
+# Optional env vars:
+#   CLAUDE_PROMPT            - Override default Claude prompt
+#   ALLOWED_TOOLS            - Override default allowed tools (default: Bash,Read,Glob,Grep,Edit,Write)
 
 : "${GH_TOKEN:?GH_TOKEN is required}"
 : "${CLAUDE_CODE_OAUTH_TOKEN:?CLAUDE_CODE_OAUTH_TOKEN is required}"
 : "${REPOS:?REPOS is required}"
+
+SKILLS_DIR="/usr/local/share/claude-code-job/skills/bump-pr-fixer"
+ALLOWED_TOOLS="${ALLOWED_TOOLS:-Bash,Read,Glob,Grep,Edit,Write}"
 
 # Configure git identity
 git config --global user.name "claude-code-bot"
@@ -51,15 +58,24 @@ while IFS= read -r repo; do
     # Checkout PR branch
     gh pr checkout "$pr_number"
 
+    # Inject skills CLAUDE.md if available
+    if [[ -f "${SKILLS_DIR}/CLAUDE.md" ]]; then
+      cp "${SKILLS_DIR}/CLAUDE.md" "$repo_dir/CLAUDE.md"
+    fi
+
+    # Build prompt
+    DEFAULT_PROMPT="This is a Renovate dependency update PR (${repo}#${pr_number}) with failing CI checks. \
+Diagnose why CI is failing and fix the issue. \
+The failure is likely caused by the dependency update requiring code changes. \
+Look at CI logs, test failures, and type errors. \
+Make minimal targeted fixes - do not refactor unrelated code. \
+After fixing, stage your changes with git add."
+
+    PROMPT="${CLAUDE_PROMPT:-$DEFAULT_PROMPT}"
+
     # Run Claude Code to diagnose and fix
-    claude -p \
-      "This is a Renovate dependency update PR (${repo}#${pr_number}) with failing CI checks. \
-      Diagnose why CI is failing and fix the issue. \
-      The failure is likely caused by the dependency update requiring code changes. \
-      Look at CI logs, test failures, and type errors. \
-      Make minimal targeted fixes - do not refactor unrelated code. \
-      After fixing, stage your changes with git add." \
-      --allowedTools "Bash,Read,Glob,Grep,Edit,Write" \
+    claude -p "$PROMPT" \
+      --allowedTools "$ALLOWED_TOOLS" \
     || { echo "Claude failed on PR #${pr_number}, skipping"; cd /workspace; continue; }
 
     # Amend the last commit and force-push
