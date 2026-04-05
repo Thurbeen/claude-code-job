@@ -25,10 +25,18 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && apt-get update && apt-get install -y --no-install-recommends gh \
     && rm -rf /var/lib/apt/lists/*
 
+# renovate: datasource=github-releases depName=kubernetes/kubernetes
+ARG KUBECTL_VERSION=v1.32.3
+
+RUN curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+      -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
+
 RUN npm install -g @anthropic-ai/claude-code
 
 COPY scripts/ /usr/local/share/claude-code-job/scripts/
 RUN chmod +x /usr/local/share/claude-code-job/scripts/*.sh
+
+COPY skills/ /usr/local/share/claude-code-job/skills/
 
 RUN mkdir -p /workspace \
     && chown node:node /workspace
