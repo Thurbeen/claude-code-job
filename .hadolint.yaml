@@ -1,0 +1,6 @@
+---
+ignored:
+  # apt packages update via Renovate on base image bumps
+  - DL3008
+  # claude-code npm package pinned via Renovate on base image bumps
+  - DL3016
