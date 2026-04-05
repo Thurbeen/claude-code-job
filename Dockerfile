@@ -27,6 +27,9 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 
 RUN npm install -g @anthropic-ai/claude-code
 
+COPY scripts/ /usr/local/share/claude-code-job/scripts/
+RUN chmod +x /usr/local/share/claude-code-job/scripts/*.sh
+
 RUN mkdir -p /workspace \
     && chown node:node /workspace
 

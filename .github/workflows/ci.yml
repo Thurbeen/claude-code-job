@@ -26,6 +26,9 @@ jobs:
       - name: Lint Dockerfile
         run: hadolint Dockerfile
 
+      - name: Run shellcheck
+        run: shellcheck scripts/*.sh
+
   gitleaks:
     name: Secret Detection
     runs-on: ubuntu-latest
