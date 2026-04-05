@@ -34,7 +34,7 @@ RUN curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kub
 RUN npm install -g @anthropic-ai/claude-code
 
 COPY scripts/ /usr/local/share/claude-code-job/scripts/
-RUN chmod +x /usr/local/share/claude-code-job/scripts/*.sh
+RUN find /usr/local/share/claude-code-job/scripts -name '*.sh' -exec chmod +x {} +
 
 COPY skills/ /usr/local/share/claude-code-job/skills/
 
