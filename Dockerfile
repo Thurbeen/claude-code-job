@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fzf \
       openssh-client \
       python3 \
+      python3-venv \
       build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -30,6 +31,10 @@ ARG KUBECTL_VERSION=v1.32.3
 
 RUN curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
       -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
+
+# Install uv (Python package manager) for MCP servers that use uvx
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
 RUN npm install -g @anthropic-ai/claude-code
 
