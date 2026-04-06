@@ -27,7 +27,8 @@ jobs:
         run: hadolint Dockerfile
 
       - name: Run shellcheck
-        run: shellcheck -x scripts/*.sh scripts/lib/*.sh
+        working-directory: scripts
+        run: shellcheck -x ./*.sh lib/*.sh
 
   gitleaks:
     name: Secret Detection
