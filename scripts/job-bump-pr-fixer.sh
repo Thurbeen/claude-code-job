@@ -77,7 +77,7 @@ while IFS= read -r repo; do
   fi
 
   repo_dir="/workspace/$(echo "$repo" | tr '/' '-')"
-  gh repo clone "$repo" "$repo_dir"
+  git clone "https://github.com/${repo}.git" "$repo_dir"
 
   for pr_number in $failed_prs; do
     (fix_pr "$repo" "$pr_number" "$repo_dir") || true

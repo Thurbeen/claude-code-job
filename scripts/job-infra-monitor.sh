@@ -67,7 +67,7 @@ create_fix_pr() {
 
   local workdir
   workdir=$(mktemp -d)
-  gh repo clone "$REPO" "$workdir" -- --depth=1
+  git clone --depth=1 "https://github.com/${REPO}.git" "$workdir"
   cd "$workdir" || return 1
 
   local branch
