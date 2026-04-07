@@ -56,10 +56,12 @@ else
 fi
 
 # Build claude args: prompt must come right after -p
-CLAUDE_ARGS=(-p "$PROMPT" --allowedTools "$ALLOWED_TOOLS")
+CLAUDE_ARGS=(-p "$PROMPT" --allowedTools "$ALLOWED_TOOLS" --debug)
 
 if [[ -f "${CONFIG_DIR}/mcp-config.json" ]]; then
-  CLAUDE_ARGS+=(--mcp-config "${CONFIG_DIR}/mcp-config.json")
+  # Copy to writable workdir so Claude can access it
+  cp "${CONFIG_DIR}/mcp-config.json" "${WORKDIR}/mcp-config.json"
+  CLAUDE_ARGS+=(--mcp-config "${WORKDIR}/mcp-config.json")
   log "Using MCP config from ${CONFIG_DIR}/mcp-config.json"
 fi
 
