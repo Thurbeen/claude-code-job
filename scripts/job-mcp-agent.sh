@@ -97,5 +97,11 @@ else
   log "Running Claude (ephemeral session)"
 fi
 
+# Optional model override
+if [[ -n "${CLAUDE_MODEL:-}" ]]; then
+  CLAUDE_ARGS+=(--model "$CLAUDE_MODEL")
+  log "Using model: ${CLAUDE_MODEL}"
+fi
+
 claude "${CLAUDE_ARGS[@]}"
 log "Done"
