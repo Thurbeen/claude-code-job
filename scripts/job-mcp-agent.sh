@@ -55,15 +55,14 @@ else
   die "No prompt found: mount prompt.txt or set CLAUDE_PROMPT"
 fi
 
-# Build claude args: prompt must come right after -p
-CLAUDE_ARGS=(-p "$PROMPT" --allowedTools "$ALLOWED_TOOLS" --debug)
-
+# Place MCP config as .mcp.json in workdir for auto-discovery
 if [[ -f "${CONFIG_DIR}/mcp-config.json" ]]; then
-  # Copy to writable workdir so Claude can access it
-  cp "${CONFIG_DIR}/mcp-config.json" "${WORKDIR}/mcp-config.json"
-  CLAUDE_ARGS+=(--mcp-config "${WORKDIR}/mcp-config.json")
-  log "Using MCP config from ${CONFIG_DIR}/mcp-config.json"
+  cp "${CONFIG_DIR}/mcp-config.json" "${WORKDIR}/.mcp.json"
+  log "Placed MCP config at ${WORKDIR}/.mcp.json"
 fi
+
+# Build claude args: prompt must come right after -p
+CLAUDE_ARGS=(-p "$PROMPT" --allowedTools "$ALLOWED_TOOLS")
 
 log "Running Claude with MCP agent"
 claude "${CLAUDE_ARGS[@]}"
