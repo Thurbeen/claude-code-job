@@ -12,6 +12,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  commits:
+    name: Commit History
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: cocogitto/cocogitto-action@52d0023b4396897f1815648e553db2ab8d782f3a  # v4.2.0
+        with:
+          command: check
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -68,6 +80,7 @@ jobs:
     name: All Checks
     if: always()
     needs:
+      - commits
       - lint
       - gitleaks
       - build
