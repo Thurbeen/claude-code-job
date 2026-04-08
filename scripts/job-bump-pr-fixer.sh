@@ -36,6 +36,10 @@ fix_pr() {
 
   log "Fixing PR #${pr_number} in ${repo}"
   cd "$repo_dir" || return 1
+
+  # Clean any leftover state from previous PR fixes
+  git reset --hard
+  git clean -fd
   git checkout main && git pull --quiet
   gh pr checkout "$pr_number"
 
@@ -60,7 +64,7 @@ After fixing, stage your changes with git add."
 
   local branch
   branch=$(git branch --show-current)
-  git commit --amend --no-edit
+  git commit -m "fix: resolve CI failures for dependency update"
   git push --force-with-lease origin "$branch"
   log "Pushed fix for PR #${pr_number}"
 }
