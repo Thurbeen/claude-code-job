@@ -24,12 +24,12 @@ gitleaks detect --source . --verbose
 
 ## Pre-commit Hooks
 
-Pre-commit is configured with: gitleaks, conventional-pre-commit (commit messages must follow Conventional Commits), shellcheck, and hadolint. Run `pre-commit install` and `pre-commit install --hook-type commit-msg` to set up.
+Pre-commit is configured with: gitleaks, cocogitto (commit messages must follow Conventional Commits), shellcheck, and hadolint. Run `pre-commit install` and `pre-commit install --hook-type commit-msg` to set up.
 
 ## CI/CD
 
-- **CI** (`ci.yml`): Runs hadolint, shellcheck, gitleaks, and a Docker build (no push) on PRs and pushes to main. The `all-checks` job gates mergeability.
-- **CD** (`cd.yml`): On push to main, builds and pushes the image to `ghcr.io/thurbeen/claude-code-job` tagged with short SHA and `latest`.
+- **CI** (`ci.yml`): Runs cocogitto commit check, hadolint, shellcheck, gitleaks, and a Docker build (no push) on PRs and pushes to main. The `all-checks` job gates mergeability.
+- **CD** (`cd.yml`): On push to main, uses cocogitto to auto-bump the semver from conventional commits, creates a git tag, builds and pushes the image to `ghcr.io/thurbeen/claude-code-job` tagged with semver (e.g. `v0.2.0`) and `latest`, then publishes a GitHub Release with a generated changelog.
 
 ## Key Files
 

@@ -8,11 +8,14 @@ repos:
     hooks:
       - id: gitleaks
 
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v4.4.0
+  - repo: local
     hooks:
-      - id: conventional-pre-commit
+      - id: cocogitto-verify
+        name: Verify conventional commit message
+        entry: cog verify
+        language: system
         stages: [commit-msg]
+        args: ["--file"]
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1

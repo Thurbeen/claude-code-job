@@ -38,8 +38,6 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/b
 
 RUN npm install -g @anthropic-ai/claude-code
 
-# Force cache invalidation for scripts
-ARG SCRIPTS_CACHE_BUST=1
 COPY scripts/ /usr/local/share/claude-code-job/scripts/
 RUN find /usr/local/share/claude-code-job/scripts -name '*.sh' -exec chmod +x {} +
 
