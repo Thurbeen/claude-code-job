@@ -66,7 +66,8 @@ create_fix_pr() {
   local state="$1"
 
   local workdir
-  workdir=$(mktemp -d)
+  workdir="/workspace/$(echo "$REPO" | tr '/' '-')"
+  rm -rf "$workdir"
   git clone --depth=1 "https://github.com/${REPO}.git" "$workdir"
   cd "$workdir" || return 1
 

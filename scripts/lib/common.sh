@@ -40,14 +40,22 @@ inject_skill() {
   if [[ -f "$skill_file" ]]; then
     cp "$skill_file" "${target_dir}/CLAUDE.md"
     log "Injected skill: ${job}"
+  else
+    warn "Skill file not found: ${skill_file}"
   fi
 }
 
 # --- Claude ---
 
 # Runs Claude Code with the given prompt. Falls back to CLAUDE_PROMPT env var if set.
+# Supports CLAUDE_MODEL env var for model override.
 # Usage: run_claude "prompt text"
 run_claude() {
   local prompt="${CLAUDE_PROMPT:-$1}"
-  claude -p "$prompt" --allowedTools "$ALLOWED_TOOLS"
+  local -a args=(-p "$prompt" --allowedTools "$ALLOWED_TOOLS")
+  if [[ -n "${CLAUDE_MODEL:-}" ]]; then
+    args+=(--model "$CLAUDE_MODEL")
+    log "Using model: ${CLAUDE_MODEL}"
+  fi
+  claude "${args[@]}"
 }
