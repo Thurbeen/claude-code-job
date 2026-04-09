@@ -33,8 +33,10 @@ jobs:
       - name: Parse release decision
         id: parse
         run: |
-          VERSION="$(cog bump --auto --disable-bump-commit --dry-run)" || true
-          echo "Detected version: $VERSION"
+          RAW="$(cog bump --auto --disable-bump-commit --dry-run 2>&1)" || true
+          # Extract semver tag (vX.Y.Z) from output; ignore non-version text
+          VERSION="$(echo "$RAW" | grep -oP '^v\d+\.\d+\.\d+$' | head -1)" || true
+          echo "Detected version: ${VERSION:-none}"
           if [ -n "$VERSION" ]; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
