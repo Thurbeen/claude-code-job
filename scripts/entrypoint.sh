@@ -129,7 +129,7 @@ fi
 
 # --- Run Claude ---
 
-CLAUDE_ARGS=(-p "$PROMPT" --allowedTools "$ALLOWED_TOOLS")
+CLAUDE_ARGS=(-p "$PROMPT" --verbose --allowedTools "$ALLOWED_TOOLS")
 
 if [[ -d "$PERSIST_DIR" ]]; then
   CLAUDE_ARGS=(-c "${CLAUDE_ARGS[@]}")
