@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# job-mcp-agent.sh — Generic Claude Code agent with configurable MCPs.
+# entrypoint.sh — Generic Claude Code agent with configurable skills and MCPs.
 #
-# MCP config, skill (CLAUDE.md), and prompt are injected via mounted files
+# Skills, MCP config, and prompt are injected via mounted files
 # at CONFIG_DIR (default: /etc/claude-code-job/).
 #
 # Supports persistent sessions when PERSIST_DIR is mounted:
@@ -15,32 +15,40 @@
 #   CONFIG_DIR               - Override config mount path (default: /etc/claude-code-job)
 #   PERSIST_DIR              - Persistent storage path (default: /var/lib/claude-code-job)
 #   CLAUDE_PROMPT            - Override prompt (fallback if no prompt.txt mounted)
+#   CLAUDE_MODEL             - Override Claude model
 #   ALLOWED_TOOLS            - Override allowed tools
+#   SKILLS_REPO              - GitHub repo to clone skills from (e.g. owner/repo)
+#   SKILL_NAME               - Skill directory to install from SKILLS_REPO
+#   SKILLS_REF               - Git ref to checkout (default: main)
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=lib/common.sh
-source "${SCRIPT_DIR}/lib/common.sh"
+set -euo pipefail
 
 CONFIG_DIR="${CONFIG_DIR:-/etc/claude-code-job}"
 PERSIST_DIR="${PERSIST_DIR:-/var/lib/claude-code-job}"
 ALLOWED_TOOLS="${ALLOWED_TOOLS:-Bash,Read,Glob,Grep,Edit,Write}"
 
-require_env CLAUDE_CODE_OAUTH_TOKEN
+# --- Logging ---
 
-# Set up persistent caches if storage is mounted
+log()  { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
+warn() { log "WARN: $*"; }
+die()  { log "FATAL: $*"; exit 1; }
+
+# --- Validation ---
+
+[[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]] || die "Missing required env var: CLAUDE_CODE_OAUTH_TOKEN"
+
+# --- Persistent storage ---
+
 if [[ -d "$PERSIST_DIR" ]]; then
   log "Persistent storage detected at ${PERSIST_DIR}"
 
-  # Package caches (npm, uv)
   export npm_config_cache="${PERSIST_DIR}/cache/npm"
   export UV_CACHE_DIR="${PERSIST_DIR}/cache/uv"
   mkdir -p "$npm_config_cache" "$UV_CACHE_DIR"
 
-  # Claude session data
   export CLAUDE_CONFIG_DIR="${PERSIST_DIR}/claude"
   mkdir -p "$CLAUDE_CONFIG_DIR"
 
-  # Use a fixed workdir so --continue finds the previous session
   WORKDIR="${PERSIST_DIR}/workspace"
   mkdir -p "$WORKDIR"
 else
@@ -48,7 +56,8 @@ else
   WORKDIR=$(mktemp -d)
 fi
 
-# Refresh Google OAuth access token if refresh token is available
+# --- OAuth token refresh ---
+
 if [[ -n "${GOOGLE_REFRESH_TOKEN:-}" && -n "${GOOGLE_CLIENT_ID:-}" && -n "${GOOGLE_CLIENT_SECRET:-}" ]]; then
   log "Refreshing Google OAuth access token"
   GOOGLE_ACCESS_TOKEN=$(curl -sf -X POST https://oauth2.googleapis.com/token \
@@ -66,19 +75,50 @@ fi
 
 cd "$WORKDIR" || die "Failed to cd into ${WORKDIR}"
 
-# Inject skill if mounted
-if [[ -f "${CONFIG_DIR}/CLAUDE.md" ]]; then
-  cp "${CONFIG_DIR}/CLAUDE.md" "${WORKDIR}/CLAUDE.md"
-  log "Injected skill from ${CONFIG_DIR}/CLAUDE.md"
+# --- Skill cloning ---
+
+if [[ -n "${SKILLS_REPO:-}" && -n "${SKILL_NAME:-}" ]]; then
+  SKILLS_REF="${SKILLS_REF:-main}"
+  SKILLS_DIR="${PERSIST_DIR}/skills-repo"
+
+  if [[ -d "${SKILLS_DIR}/.git" ]]; then
+    log "Updating skills repo"
+    git -C "$SKILLS_DIR" fetch --depth=1 origin "$SKILLS_REF" 2>&1 >&2
+    git -C "$SKILLS_DIR" checkout FETCH_HEAD 2>&1 >&2
+  else
+    log "Cloning skills from ${SKILLS_REPO} (ref: ${SKILLS_REF})"
+    rm -rf "$SKILLS_DIR"
+    git clone --depth=1 --branch "$SKILLS_REF" \
+      "https://github.com/${SKILLS_REPO}.git" "$SKILLS_DIR" 2>&1 >&2
+  fi
+
+  SKILL_SRC="${SKILLS_DIR}/skills/${SKILL_NAME}"
+  if [[ -d "$SKILL_SRC" ]]; then
+    SKILL_DEST="${HOME}/.claude/skills/${SKILL_NAME}"
+    mkdir -p "$(dirname "$SKILL_DEST")"
+    ln -sfn "$SKILL_SRC" "$SKILL_DEST"
+    log "Installed skill: ${SKILL_NAME} -> ${SKILL_DEST}"
+  else
+    die "Skill '${SKILL_NAME}' not found in ${SKILLS_REPO}"
+  fi
 fi
 
-# Place MCP config as .mcp.json in workdir for auto-discovery
+# --- Skill injection (from mounted config) ---
+
+if [[ -f "${CONFIG_DIR}/CLAUDE.md" ]]; then
+  cp "${CONFIG_DIR}/CLAUDE.md" "${WORKDIR}/CLAUDE.md"
+  log "Injected CLAUDE.md from ${CONFIG_DIR}"
+fi
+
+# --- MCP config ---
+
 if [[ -f "${CONFIG_DIR}/mcp-config.json" ]]; then
   cp "${CONFIG_DIR}/mcp-config.json" "${WORKDIR}/.mcp.json"
   log "Placed MCP config at ${WORKDIR}/.mcp.json"
 fi
 
-# Read prompt
+# --- Prompt ---
+
 if [[ -f "${CONFIG_DIR}/prompt.txt" ]]; then
   PROMPT=$(cat "${CONFIG_DIR}/prompt.txt")
 elif [[ -n "${CLAUDE_PROMPT:-}" ]]; then
@@ -87,17 +127,17 @@ else
   die "No prompt found: mount prompt.txt or set CLAUDE_PROMPT"
 fi
 
-# Build claude args
-# Use --continue to resume previous session if persistent storage is available
+# --- Run Claude ---
+
+CLAUDE_ARGS=(-p "$PROMPT" --allowedTools "$ALLOWED_TOOLS")
+
 if [[ -d "$PERSIST_DIR" ]]; then
-  CLAUDE_ARGS=(-c -p "$PROMPT" --allowedTools "$ALLOWED_TOOLS")
+  CLAUDE_ARGS=(-c "${CLAUDE_ARGS[@]}")
   log "Running Claude with session continuity"
 else
-  CLAUDE_ARGS=(-p "$PROMPT" --allowedTools "$ALLOWED_TOOLS")
   log "Running Claude (ephemeral session)"
 fi
 
-# Optional model override
 if [[ -n "${CLAUDE_MODEL:-}" ]]; then
   CLAUDE_ARGS+=(--model "$CLAUDE_MODEL")
   log "Using model: ${CLAUDE_MODEL}"

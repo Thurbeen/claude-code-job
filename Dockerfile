@@ -38,10 +38,8 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/b
 
 RUN npm install -g @anthropic-ai/claude-code
 
-COPY scripts/ /usr/local/share/claude-code-job/scripts/
-RUN find /usr/local/share/claude-code-job/scripts -name '*.sh' -exec chmod +x {} +
-
-COPY skills/ /usr/local/share/claude-code-job/skills/
+COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 RUN mkdir -p /workspace \
     && chown node:node /workspace
@@ -49,4 +47,4 @@ RUN mkdir -p /workspace \
 USER node
 WORKDIR /workspace
 
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["entrypoint.sh"]

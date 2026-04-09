@@ -7,7 +7,7 @@ branch_whitelist = ["main"]
 ignore_merge_commits = true
 
 # List of valid commit scopes
-scopes = ["ci", "cd", "scripts", "docker", "skills"]
+scopes = ["ci", "cd", "docker", "entrypoint"]
 
 # Tag prefix for semantic versioning
 tag_prefix = "v"
