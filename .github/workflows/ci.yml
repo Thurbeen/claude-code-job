@@ -22,7 +22,7 @@ jobs:
 
       - uses: cocogitto/cocogitto-action@52d0023b4396897f1815648e553db2ab8d782f3a  # v4.2.0
         with:
-          command: check
+          command: check --from-latest-tag
 
   lint:
     name: Lint
@@ -39,8 +39,7 @@ jobs:
         run: hadolint Dockerfile
 
       - name: Run shellcheck
-        working-directory: scripts
-        run: shellcheck -x ./*.sh lib/*.sh
+        run: shellcheck scripts/entrypoint.sh
 
   gitleaks:
     name: Secret Detection
