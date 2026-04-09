@@ -45,6 +45,9 @@ RUN mkdir -p /workspace \
     && chown node:node /workspace
 
 USER node
+
+RUN mkdir -p ~/.claude && printf '{\n  "attribution": {\n    "commit": "",\n    "pr": ""\n  }\n}\n' > ~/.claude/settings.json
+
 WORKDIR /workspace
 
 ENTRYPOINT ["entrypoint.sh"]
