@@ -33,6 +33,61 @@ log()  { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 warn() { log "WARN: $*"; }
 die()  { log "FATAL: $*"; exit 1; }
 
+# --- thurkube agent.json prelude ---
+#
+# When invoked by the thurkube controller, a single `agent.json`
+# bundle is mounted under CONFIG_DIR (see the AgentRuntime /
+# AgentJob CRDs in the thurkube Helm chart). Explode it into
+# the files + env vars the rest of this script expects, then
+# fall through to the existing config-file codepath.
+
+AGENT_CONFIG="${AGENT_CONFIG:-${CONFIG_DIR}/agent.json}"
+AGENT_CLAUDE_MD=""
+AGENT_MCP_JSON=""
+if [[ -f "$AGENT_CONFIG" ]]; then
+  log "Loading thurkube agent config from ${AGENT_CONFIG}"
+
+  _prompt="$(jq -r '.prompt // empty' "$AGENT_CONFIG")"
+  [[ -n "$_prompt" ]] && export CLAUDE_PROMPT="$_prompt"
+
+  _model="$(jq -r '.model // empty' "$AGENT_CONFIG")"
+  [[ -n "$_model" ]] && export CLAUDE_MODEL="$_model"
+
+  _tools="$(jq -r '.allowedTools // [] | join(",")' "$AGENT_CONFIG")"
+  [[ -n "$_tools" ]] && export ALLOWED_TOOLS="$_tools"
+
+  _skill_repo="$(jq -r '.skill.repo // empty' "$AGENT_CONFIG")"
+  [[ -n "$_skill_repo" ]] && export SKILLS_REPO="$_skill_repo"
+  _skill_name="$(jq -r '.skill.name // empty' "$AGENT_CONFIG")"
+  [[ -n "$_skill_name" ]] && export SKILL_NAME="$_skill_name"
+  _skill_ref="$(jq -r '.skill.ref // empty' "$AGENT_CONFIG")"
+  [[ -n "$_skill_ref" ]] && export SKILLS_REF="$_skill_ref"
+
+  _instructions="$(jq -r '.instructions // empty' "$AGENT_CONFIG")"
+  if [[ -n "$_instructions" ]]; then
+    AGENT_CLAUDE_MD="$(mktemp)"
+    printf '%s' "$_instructions" > "$AGENT_CLAUDE_MD"
+  fi
+
+  _mcp_count="$(jq '.mcpServers | length' "$AGENT_CONFIG")"
+  if [[ "$_mcp_count" -gt 0 ]]; then
+    AGENT_MCP_JSON="$(mktemp)"
+    jq '{ mcpServers: (.mcpServers | map({key: .name, value: (del(.name))}) | from_entries) }' \
+      "$AGENT_CONFIG" > "$AGENT_MCP_JSON"
+  fi
+
+  _repos="$(jq -r '.repositories[]? | "\(.owner)/\(.repo)"' "$AGENT_CONFIG")"
+  if [[ -n "$_repos" ]]; then
+    export REPOS="$_repos"
+    _first_repo="$(printf '%s' "$_repos" | head -n1)"
+    export REPO="$_first_repo"
+    unset _first_repo
+  fi
+
+  unset _prompt _model _tools _skill_repo _skill_name _skill_ref \
+        _instructions _mcp_count _repos
+fi
+
 # --- Validation ---
 
 [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]] || die "Missing required env var: CLAUDE_CODE_OAUTH_TOKEN"
@@ -108,6 +163,9 @@ fi
 if [[ -f "${CONFIG_DIR}/CLAUDE.md" ]]; then
   cp "${CONFIG_DIR}/CLAUDE.md" "${WORKDIR}/CLAUDE.md"
   log "Injected CLAUDE.md from ${CONFIG_DIR}"
+elif [[ -n "$AGENT_CLAUDE_MD" ]]; then
+  cp "$AGENT_CLAUDE_MD" "${WORKDIR}/CLAUDE.md"
+  log "Injected CLAUDE.md from agent.json instructions"
 fi
 
 # --- MCP config ---
@@ -115,6 +173,9 @@ fi
 if [[ -f "${CONFIG_DIR}/mcp-config.json" ]]; then
   cp "${CONFIG_DIR}/mcp-config.json" "${WORKDIR}/.mcp.json"
   log "Placed MCP config at ${WORKDIR}/.mcp.json"
+elif [[ -n "$AGENT_MCP_JSON" ]]; then
+  cp "$AGENT_MCP_JSON" "${WORKDIR}/.mcp.json"
+  log "Placed MCP config from agent.json at ${WORKDIR}/.mcp.json"
 fi
 
 # --- Prompt ---
