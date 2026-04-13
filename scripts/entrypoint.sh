@@ -149,7 +149,12 @@ if [[ -n "${SKILLS_REPO:-}" && -n "${SKILL_NAME:-}" ]]; then
 
   SKILL_SRC="${SKILLS_DIR}/skills/${SKILL_NAME}"
   if [[ -d "$SKILL_SRC" ]]; then
-    SKILL_DEST="${HOME}/.claude/skills/${SKILL_NAME}"
+    # Prefer CLAUDE_CONFIG_DIR (points at writable persistent
+    # volume) when set, falling back to $HOME. Required under
+    # thurkube where readOnlyRootFilesystem blocks writes to
+    # $HOME/.claude.
+    SKILL_HOME="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}"
+    SKILL_DEST="${SKILL_HOME}/skills/${SKILL_NAME}"
     mkdir -p "$(dirname "$SKILL_DEST")"
     ln -sfn "$SKILL_SRC" "$SKILL_DEST"
     log "Installed skill: ${SKILL_NAME} -> ${SKILL_DEST}"
