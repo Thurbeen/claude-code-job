@@ -139,7 +139,12 @@ if [[ -n "${SKILLS_REPO:-}" && -n "${SKILL_NAME:-}" ]]; then
   if [[ -d "${SKILLS_DIR}/.git" ]]; then
     log "Updating skills repo"
     git -C "$SKILLS_DIR" fetch --depth=1 origin "$SKILLS_REF" 2>&1 >&2
-    git -C "$SKILLS_DIR" checkout FETCH_HEAD 2>&1 >&2
+    # Force working tree to match FETCH_HEAD. The PVC-persisted
+    # clone can drift (file modes, prior in-place edits) and plain
+    # `git checkout` refuses to overwrite — making the job wedge
+    # across every subsequent cron tick until manual cleanup.
+    git -C "$SKILLS_DIR" reset --hard FETCH_HEAD 2>&1 >&2
+    git -C "$SKILLS_DIR" clean -fdx 2>&1 >&2
   else
     log "Cloning skills from ${SKILLS_REPO} (ref: ${SKILLS_REF})"
     rm -rf "$SKILLS_DIR"
